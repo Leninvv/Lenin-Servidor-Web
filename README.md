@@ -21,6 +21,7 @@ services:
       - 8081:80
     volumes:
       - apache-data:/usr/local/apache2/htdocs
+      - apache-conf:/usr/local/apache2/conf
 ```
 #### Contenedor DNS
 ##### Creación de contenedor asir_bind9
@@ -65,7 +66,7 @@ services:
 ```
 #### Contenedor wireshark
 ##### Usamos la imagen lscr.io/linuxserver/wireshark
-##### 
+##### Configuramos los siguientes campos como lo especifica la documentación de la imagen
 ```
   asir_wireshark:
     image: lscr.io/linuxserver/wireshark
@@ -80,7 +81,12 @@ services:
       - wiresharkconf:/config
     ports:
       - 3000:3000
-    restart: unless-stopped 
+    restart: unless-stopped
+```
+#### Red y volúmenes
+##### Indicamos que la red apanet es una red externa que ya existía previamente
+##### Indicamos los volúmenes, a su vez indicamos que los volúmenes apache-data, apache-conf y conf ya han sido creados previamente
+```
 
 networks:
   apanet:
@@ -99,3 +105,81 @@ volumes:
   wiresharkconf:
 
   ```
+  #### Configuración Virtual hosts y DNS
+  ##### Habilitamos los Virtual Hosts en httpd.conf
+
+```
+# Virtual hosts
+Include conf/extra/httpd-vhosts.conf #hay que descomentar esta línea
+
+```
+
+##### Creamos los Virtual Hosts en Httpd-vhosts.conf
+
+```
+<VirtualHost *:80>
+    ServerAdmin webmaster@dummy-host.example.com
+    DocumentRoot "/usr/local/apache2/htdocs/other"
+    ServerName apache.com
+    ServerAlias other.apache.com
+    ErrorLog "logs/dummy-host.example.com-error_log"
+    CustomLog "logs/dummy-host.example.com-access_log" common
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerAdmin webmaster@dummy-host2.example.com
+    DocumentRoot "/usr/local/apache2/htdocs/otro"
+    ServerName apache.com
+    ServerAlias otro.apache.com
+    ErrorLog "logs/dummy-host2.example.com-error_log"
+    CustomLog "logs/dummy-host2.example.com-access_log" common
+</VirtualHost>
+
+```
+##### Configuramos los Virtual Hosts en el Bind dns
+##### Creamos la zona, los forwardes y el CNAME
+##### BIND file de apache.com
+
+```
+;
+; BIND data file for apache.com
+;
+$TTL	604800
+@	IN	SOA	apache.com. root.apache.com. (
+			      2		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			 604800 )	; Negative Cache TTL
+;
+@	IN	NS	ns.apache.com.
+@	IN	A	192.168.22.4
+@	IN	AAAA	::1
+ns  IN  A	192.168.22.4
+@	IN	TXT	"Texto de ejemplo"
+www CNAME apache.com. 
+other CNAME apache.com.
+otro CNAME apache.com.
+
+```
+
+##### Zona en namec.conf.local
+
+```
+zone "apache.com" {
+    type master;
+    file "/etc/bind/db.apache.com";
+};
+
+```
+##### Configuramos los forwarders en named.conf.options
+
+```
+forwarders {
+		8.8.8.8;
+		8.8.4.4;
+	 };
+
+```
+
+
