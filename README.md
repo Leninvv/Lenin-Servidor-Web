@@ -181,5 +181,55 @@ forwarders {
 	 };
 
 ```
+#### Securización SSL 
+##### Generamos los certificados ssl
 
+```
+openssl req -x509 -newkey rsa:2048 -keyout certificado.key -out certificado.pem -nodes -days 365
+```
 
+##### Importamos los archivos .key y .pem dentro del contenedor.
+
+```
+docker cp certificado.key dockerapache_asir_apache_1:/usr/local/apache2/conf
+
+docker cp certificado.pem dockerapache_asir_apache_1:/usr/local/apache2/conf
+
+```
+
+##### Modificamos los virtual hosts para que usen el puerto 443 y ese certificado
+
+```
+<VirtualHost *:443>
+    ServerAdmin webmaster@dummy-host.example.com
+    DocumentRoot "/usr/local/apache2/htdocs/other"
+    ServerName apache.com
+    ServerAlias other.apache.com
+    ErrorLog "logs/dummy-host.example.com-error_log"
+    CustomLog "logs/dummy-host.example.com-access_log" common
+    SSLEngine on
+    SSLCertificateFile "/usr/local/apache2/conf/certificado.pem"
+    SSLCertificateKeyFile "/usr/local/apache2/conf/certificado.key"
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerAdmin webmaster@dummy-host2.example.com
+    DocumentRoot "/usr/local/apache2/htdocs/otro"
+    ServerName apache.com
+    ServerAlias otro.apache.com
+    ErrorLog "logs/dummy-host2.example.com-error_log"
+    CustomLog "logs/dummy-host2.example.com-access_log" common
+    SSLEngine on
+    SSLCertificateFile "/usr/local/apache2/conf/certificado.pem"
+    SSLCertificateKeyFile "/usr/local/apache2/conf/certificado.key"
+</VirtualHost>
+```
+##### Debemos habilitar los módulos que se indican en httpd-ssl.conf a mayores del que ya habilitamos previamente
+
+```
+LoadModule ssl_module modules/mod_ssl.so
+LoadModule socache_shmcb_module modules/mod_socache_shmcb.so
+
+```
+
+#### Finalmente solo queda reiniciar nuestro apache y comprobar su funcionamiento
