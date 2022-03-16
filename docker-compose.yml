@@ -1,0 +1,68 @@
+version: "3.3"
+services:
+  asir_apache:
+    image: httpd:latest
+    networks:
+       apanet:
+        ipv4_address: 192.168.22.4
+    ports:
+      - 8081:80
+    volumes:
+      - apache-data:/usr/local/apache2/htdocs
+      - apache-conf:/usr/local/apache2/conf
+  asir_bind9:
+    image: internetsystemsconsortium/bind9:9.16
+    networks:
+       apanet:
+        ipv4_address: 192.168.22.5
+    ports:
+      - 53:53
+    volumes:
+      - conf:/etc/bind
+      - options:/var/cache/bind
+      - secondaryzones:/var/lib/bind
+      - logfiles:/var/log
+
+  asir_cliente:
+    image: kasmweb/desktop:1.10.0-rolling
+    networks:
+      - apanet
+    dns:
+      - 192.168.22.5
+    ports:
+      - 6901:6901
+    environment:
+      - VNC_PW=123456
+    stdin_open: true  # docker run -i
+    tty: true         # docker run -t
+  
+  asir_wireshark:
+    image: lscr.io/linuxserver/wireshark
+    cap_add:
+      - NET_ADMIN
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Madrid
+    volumes:
+      - wiresharkconf:/config
+    ports:
+      - 3000:3000
+    restart: unless-stopped 
+
+networks:
+  apanet:
+    external: true
+
+volumes:
+  apache-data:
+    external: true
+  conf:
+    external: true
+  apache-conf:
+    external: true
+  options:
+  secondaryzones:
+  logfiles:
+  wiresharkconf:
